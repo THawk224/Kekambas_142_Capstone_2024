@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Book</title>
+</head>
+<body>
+    <h1>Edit <%= book.title %></h1>
+    <form id="edit-form">
+        <input type="hidden" id="edit-id" value="<%= book.id %>">
+        <input type="text" id="edit-title" placeholder="Title" value="<%= book.title %>" required>
+        <input type="text" id="edit-author" placeholder="Author" value="<%= book.author %>" required>
+        <input type="text" id="edit-genre" placeholder="Genre" value="<%= book.genre %>" required>
+        <button type="submit">Update Book</button>
+    </form>
+
+    <script src="/js/script.js"></script>
+</body>
+</html>

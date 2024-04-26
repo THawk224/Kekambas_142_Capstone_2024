@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookshelf App</title>
+</head>
+<body>
+<h1>My Bookshelf</h1>
+
+<!-- Login Form -->
+<form id="login-form">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button type="submit">Login</button>
+</form>
+
+<!-- Registration Form -->
+<form id="register-form">
+    <h2>Register</h2>
+    <input type="text" id="register-username" placeholder="Username" required>
+    <input type="password" id="register-password" placeholder="Password" required>
+    <button type="submit">Register</button>
+</form>
+
+<!-- Book form -->
+<form id="book-form">
+    <h2>Book Log</h2>
+    <input type="hidden" id="book-id" value="">
+    <input type="hidden" id="form-mode" value="new">
+    <input type="text" id="title" placeholder="Title" required>
+    <input type="text" id="author" placeholder="Author" required>
+    <input type="text" id="genre" placeholder="Genre" required>
+    <button type="submit">Save Book</button>
+</form>
+
+<div id="books"></div>
+
+<script>
+document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.token) {
+            localStorage.setItem('jwt_token', data.token);  // Store the token in local storage
+            console.log('Token stored:', data.token);
+            window.location.reload();  // Reload to fetch authenticated content
+        } else {
+            throw new Error('Token not provided');
+        }
+    })
+    .catch(error => console.error('Login Error:', error));
+});
+
+document.getElementById('register-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
+
+    fetch('/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include' // Include credentials in the request
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        // If registration is successful, reload the page
+        window.location.reload();
+    })
+    .catch(error => console.error('Registration Error:', error));
+});
+
+document.getElementById('book-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = document.getElementById('book-form');
+    const title = document.getElementById('title').value;
+    const author = document.getElementById('author').value;
+    const genre = document.getElementById('genre').value;
+    const bookId = document.getElementById('book-id').value;
+    const mode = document.getElementById('form-mode').value;
+
+    const endpoint = mode === 'new' ? '/books' : `/books/${bookId}`;
+    const method = mode === 'new' ? 'POST' : 'PUT';
+    const token = localStorage.getItem('jwt_token');
+
+    fetch(endpoint, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title, author, genre }),
+        credentials: 'include' // Include credentials (e.g., cookies) in the request
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log(data);
+        loadBooks(); // Reload the list of books
+        form.reset(); // Reset the form after submission
+        document.getElementById('book-id').value = ''; // Clear book id
+        document.getElementById('form-mode').value = 'new'; // Reset the form mode to new
+    })
+    .catch(error => console.error('Error:', error));
+});
+
+function loadBooks() {
+    const token = localStorage.getItem('jwt_token');
+    fetch('/books', { headers: {Authorization: 'Bearer ' +token} }) // Include credentials in the request
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        return response.json();
+    })
+    .then(books => {
+        const booksContainer = document.getElementById('books');
+        booksContainer.innerHTML = '';
+        books.forEach(book => {
+            const bookDiv = document.createElement('div');
+            bookDiv.innerHTML = `${book.title} by ${book.author} (${book.genre})`;
+            const editButton = document.createElement('button');
+            editButton.textContent = 'Edit';
+            editButton.onclick = function() {
+                document.getElementById('title').value = book.title;
+                document.getElementById('author').value = book.author;
+                document.getElementById('genre').value = book.genre;
+                document.getElementById('book-id').value = book.id;
+                document.getElementById('form-mode').value = 'update';
+            };
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = function() {
+                fetch(`/books/${book.id}`, { method: 'DELETE', credentials: 'include', headers: {Authorization: 'Bearer ' +token} }) // Include credentials in the request
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(response.statusText);
+                    }
+                    console.log('Book deleted');
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(data);
+                    loadBooks(); // Reload the list of books
+                })
+                .catch(error => console.error('Error:', error));
+            };
+            bookDiv.appendChild(editButton);
+            bookDiv.appendChild(deleteButton);
+            booksContainer.appendChild(bookDiv);
+        });
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+loadBooks(); // Initial load of books
+</script>
+</body>
+</html>
